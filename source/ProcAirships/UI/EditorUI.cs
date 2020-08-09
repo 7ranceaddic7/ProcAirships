@@ -80,6 +80,11 @@ namespace ProcAirships.UI
             EditorController.altitude = e.Value;
         }
 
+        public void OnAutoFillClick(object sender, EventArgs e)
+        {
+            EditorController.AutoFill = true;
+        }
+
         protected override void OnPreDraw()
         {       
             labNetBuoyancy.Caption = String.Format("net. Buoyancy: {0:N}kN", EditorController.NetBuoyancy);        
@@ -88,9 +93,17 @@ namespace ProcAirships.UI
         protected override void OnPostDraw()
         {
             int autoFillCount = EditorController.AutoFillCounter;
+            int overpressureCount = EditorController.OverpressureCounter;
+            int pControlCount = EditorController.PControlCounter;
 
             if (autoFillCount > 0)
                 GUILayout.Label(" WARNING: Autofill on " + autoFillCount + " parts.");
+
+            if (overpressureCount > 0)
+                GUILayout.Label(" PRESSURE WARNING on " + overpressureCount + " parts.");
+
+            if(pControlCount > 0)
+                GUILayout.Label(" Pressure Control on " + pControlCount + " parts.");
             
         }
 
@@ -129,6 +142,9 @@ namespace ProcAirships.UI
             
 
             labAltitude = new Label(layoutGroupPresets);
+
+            btAutoFill = new Button(Surface, "Auto Fill");
+            btAutoFill.OnClick += OnAutoFillClick;
 
             labNetBuoyancy = new Label(Surface);
 
@@ -182,6 +198,7 @@ namespace ProcAirships.UI
         Slider altSlider;
         SelectionGrid bodyGrid;
         Label labNetBuoyancy;
+        Button btAutoFill;
         
 
         List<CelestialBody> availableBodies = new List<CelestialBody>();

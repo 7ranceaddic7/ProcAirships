@@ -225,6 +225,22 @@ namespace ProcAirships
             get { return autofill; }
         }
 
+        public float Overpressure
+        {
+            get
+            {
+                return Math.Abs((relativePressure - idealRelPressure)) - pressureTolerance;
+            }
+        }
+
+        public bool PressureControl
+        {
+            get
+            {
+                return this.pressureControl;
+            }
+        }
+
         
 
 #endregion
@@ -394,7 +410,7 @@ namespace ProcAirships
                 Log.post("no valid lifting gas selected. Set to default", LogLevel.LOG_WARNING);
                 if (liftingGasOptions.Count > 0)
                 {
-                    liftingGas = liftingGasOptions.First<LiftingGas>().displayName;
+                    liftingGas = liftingGasOptions.First<LiftingGas>(lgo => !lgo.deprecated).displayName;
                     Log.post("liftinggas set to: " + liftingGas, LogLevel.LOG_INFORMATION);
                 }
                 else
@@ -456,7 +472,7 @@ namespace ProcAirships
         {
             updateFlag = false;
 
-            if (pressureControl && !util.editorActive() && isControllable)
+            if ((pressureControl && !util.editorActive() && isControllable) || (pressureControl && util.editorActive() && !autofill))
             {
                 if (relativePressure > idealRelPressure)
                 {
@@ -628,7 +644,7 @@ namespace ProcAirships
             damageTimer += TimeWarp.fixedDeltaTime;
             if (damageTimer >= 1.0f)
             {
-                float overpressure = Math.Abs((relativePressure - idealRelPressure)) - pressureTolerance;
+                float overpressure = Overpressure;//Math.Abs((relativePressure - idealRelPressure)) - pressureTolerance;
 
                 //Log.post("[" + part.vessel.vesselName + "] Checking for pressure damage");
                 //Log.post("pressure deviation: " + (relativePressure - idealRelPressure));
@@ -663,7 +679,7 @@ namespace ProcAirships
         private void updateEnvelope()
         {
 
-            if(!updateFlag)
+            if(!updateFlag) // do this once per update cycle, and before any envelopes gets updated
             {
                 List<AirshipEnvelope> connectedEnvelopes = getConnectedEnvelopes();
 
@@ -716,7 +732,7 @@ namespace ProcAirships
 
             part.mass = (dryMassPerQubicMeter * envelopeVolume) + (liftingGasAmount / 1000.0f);
 
-            if (autofill && util.editorActive())
+            if (util.editorActive() && (autofill || EditorController.AutoFill))
                 autoFill();
 
             if(ventGas && isControllable)
@@ -829,7 +845,10 @@ namespace ProcAirships
                 if (uiChooser != null)
                 {
                     Log.post("setting up UI for LiftingGasOptions");
-                    uiChooser.options = liftingGasOptions.Select<LiftingGas, string>(a => a.displayName).ToArray();
+                    //uiChooser.options = liftingGasOptions.Select<LiftingGas, string>(a => a.displayName).ToArray();
+                    uiChooser.options = (from lgo in liftingGasOptions
+                                         where lgo.deprecated == false
+                                         select lgo.displayName).ToArray();
                 }
             }
 
@@ -952,6 +971,8 @@ namespace ProcAirships
             [SerializeField]
             public float cost;
 
+            public bool deprecated = false;
+
             public void Load(ConfigNode node)
             {
                 //ConfigNode.LoadObjectFromConfig(this, node);
@@ -978,6 +999,9 @@ namespace ProcAirships
 
                 if (!node.TryGetValue("cost", out cost))
                     Log.post("Could not read cost from ConfigNode", LogLevel.LOG_ERROR);
+
+                if (!node.TryGetValue("deprecated", out deprecated))
+                    Log.post("Could not read deprecated from ConfigNode", LogLevel.LOG_WARNING);
 
             }
             public void Save(ConfigNode node)
